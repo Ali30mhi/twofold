@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; media-src 'self' blob: mediastream:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light dark" />
+<title>Twofold</title>
+  <script type="module" crossorigin src="./assets/index-DVC8eMO1.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-C4tM_nzi.css">
+</head>
+<body>
+<main>
+  <header class="top">
+    <div>
+      <h1>Twofold</h1>
+      <p class="tagline">Two-factor codes that stay on your device.</p>
+    </div>
+    <div id="app-actions" class="actions" hidden>
+      <button type="button" id="import" class="ghost">Import</button>
+      <button type="button" id="export" class="ghost">Export</button>
+      <button type="button" id="lock" class="ghost">Lock</button>
+    </div>
+  </header>
+
+  <section id="setup" class="panel" hidden>
+    <h2>Create your vault</h2>
+    <p class="hint">Your accounts are encrypted with this passphrase before anything is saved. It never leaves this device and cannot be recovered, so keep it somewhere safe.</p>
+    <form id="setup-form">
+      <label>Passphrase <input id="setup-pass" type="password" autocomplete="new-password" required minlength="8" /></label>
+      <label>Repeat passphrase <input id="setup-pass2" type="password" autocomplete="new-password" required minlength="8" /></label>
+      <button>Create vault</button>
+      <p class="error" role="alert" hidden></p>
+    </form>
+  </section>
+
+  <section id="unlock" class="panel" hidden>
+    <h2>Unlock your vault</h2>
+    <form id="unlock-form">
+      <label>Passphrase <input id="unlock-pass" type="password" autocomplete="current-password" required /></label>
+      <button>Unlock</button>
+      <p class="error" role="alert" hidden></p>
+    </form>
+    <button type="button" id="reset" class="link danger">Forgot your passphrase?</button>
+  </section>
+
+  <section id="app" hidden>
+    <div class="add">
+      <div class="scan-row">
+        <button type="button" id="scan">Scan QR code</button>
+        <button type="button" id="upload" class="ghost">Upload QR image</button>
+      </div>
+      <p class="hint small">Tip: take a screenshot of a QR code and paste it here with Ctrl+V. To move everything from Google Authenticator, scan its "Transfer accounts" code.</p>
+
+      <form id="uri-form">
+        <label for="uri">Or paste a setup link</label>
+        <div class="row">
+          <input id="uri" autocomplete="off" spellcheck="false" placeholder="otpauth://… or otpauth-migration://…" />
+          <button>Add</button>
+        </div>
+      </form>
+      <button type="button" id="demo" class="link">Add a demo account</button>
+
+      <details>
+        <summary>Enter a key manually</summary>
+        <form id="manual-form">
+          <label>Issuer <input id="m-issuer" autocomplete="off" placeholder="GitHub" /></label>
+          <label>Account <input id="m-account" required autocomplete="off" placeholder="you@example.com" /></label>
+          <label>Secret key <input id="m-secret" required autocomplete="off" spellcheck="false" placeholder="JBSW Y3DP EHPK 3PXP" /></label>
+          <div class="grid">
+            <label>Type
+              <select id="m-type"><option value="totp">Time-based</option><option value="hotp">Counter-based</option></select>
+            </label>
+            <label>Digits
+              <select id="m-digits"><option>6</option><option>7</option><option>8</option></select>
+            </label>
+            <label>Period
+              <select id="m-period"><option value="30">30 seconds</option><option value="60">60 seconds</option></select>
+            </label>
+            <label>Algorithm
+              <select id="m-alg"><option>SHA1</option><option>SHA256</option><option>SHA512</option></select>
+            </label>
+          </div>
+          <button>Add account</button>
+        </form>
+      </details>
+
+      <p id="error" class="error" role="alert" hidden></p>
+    </div>
+
+    <p id="empty" class="empty">No accounts yet.</p>
+    <ul id="list"></ul>
+  </section>
+</main>
+
+<dialog id="scan-dialog">
+  <h2>Scan a QR code</h2>
+  <p class="hint">Hold the code inside the frame. Nothing leaves this device.</p>
+  <video id="scan-video" playsinline muted></video>
+  <div class="row end">
+    <button type="button" id="scan-cancel" class="ghost">Cancel</button>
+  </div>
+</dialog>
+
+<dialog id="import-dialog">
+  <form id="import-form">
+    <h2>Import a backup</h2>
+    <p class="hint">Enter the passphrase of the vault this backup came from.</p>
+    <label>Passphrase <input id="import-pass" type="password" autocomplete="off" required /></label>
+    <p class="error" role="alert" hidden></p>
+    <div class="row end">
+      <button type="button" id="import-cancel" class="ghost">Cancel</button>
+      <button>Import</button>
+    </div>
+  </form>
+</dialog>
+
+<input type="file" id="import-file" accept=".json,application/json" hidden />
+<input type="file" id="qr-file" accept="image/*" hidden />
+<div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
