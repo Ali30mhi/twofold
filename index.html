@@ -43,10 +43,16 @@
 
   <section id="app" hidden>
     <div class="add">
+      <div class="scan-row">
+        <button type="button" id="scan">Scan QR code</button>
+        <button type="button" id="upload" class="ghost">Upload QR image</button>
+      </div>
+      <p class="hint small">Tip: take a screenshot of a QR code and paste it here with Ctrl+V. To move everything from Google Authenticator, scan its "Transfer accounts" code.</p>
+
       <form id="uri-form">
-        <label for="uri">Paste an otpauth:// link</label>
+        <label for="uri">Or paste a setup link</label>
         <div class="row">
-          <input id="uri" autocomplete="off" spellcheck="false" placeholder="otpauth://totp/Example:you@example.com?secret=…" />
+          <input id="uri" autocomplete="off" spellcheck="false" placeholder="otpauth://… or otpauth-migration://…" />
           <button>Add</button>
         </div>
       </form>
@@ -84,6 +90,15 @@
   </section>
 </main>
 
+<dialog id="scan-dialog">
+  <h2>Scan a QR code</h2>
+  <p class="hint">Hold the code inside the frame. Nothing leaves this device.</p>
+  <video id="scan-video" playsinline muted></video>
+  <div class="row end">
+    <button type="button" id="scan-cancel" class="ghost">Cancel</button>
+  </div>
+</dialog>
+
 <dialog id="import-dialog">
   <form id="import-form">
     <h2>Import a backup</h2>
@@ -96,7 +111,9 @@
     </div>
   </form>
 </dialog>
+
 <input type="file" id="import-file" accept=".json,application/json" hidden />
+<input type="file" id="qr-file" accept="image/*" hidden />
 <div id="toast" role="status" aria-live="polite"></div>
 <script type="module" src="/src/main.js"></script>
 </body>

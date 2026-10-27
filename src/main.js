@@ -1,6 +1,8 @@
 import './style.css';
+import jsQR from 'jsqr';
 import { parseOtpauth, buildOtpauth, base32Decode, base32Encode, hotp } from './otp.js';
 import { createVault, seal, open } from './vault.js';
+import { parseMigration } from './migration.js';
 
 const STORAGE_KEY = 'twofold.vault';
 const AUTO_LOCK_MS = 5 * 60 * 1000;
@@ -10,6 +12,8 @@ let session = null; // { key, kdf } while unlocked; the key itself is non-extrac
 let accounts = [];
 let lastActivity = Date.now();
 let pendingImport = null;
+let scanStream = null;
+let scanFrame = 0;
 
 const $ = (sel) => document.querySelector(sel);
 const list = $('#list');
@@ -18,7 +22,7 @@ const list = $('#list');
 function el(tag, cls, text) {
   const node = document.createElement(tag);
   if (cls) node.className = cls;
-  if (text !== undefined) node.textContent = text; // textContent only: labels come from untrusted links
+  if (text !== undefined) node.textContent = text; // textContent only: labels come from untrusted codes
   return node;
 }
 
@@ -34,7 +38,7 @@ function toast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
 }
 
 async function busy(form, label, task) {
@@ -53,8 +57,8 @@ async function busy(form, label, task) {
 function show(screen) {
   for (const id of ['setup', 'unlock', 'app']) $(`#${id}`).hidden = id !== screen;
   $('#app-actions').hidden = screen !== 'app';
-  const focus = { setup: '#setup-pass', unlock: '#unlock-pass', app: '#uri' }[screen];
-  $(focus)?.focus();
+  const focus = { setup: '#setup-pass', unlock: '#unlock-pass', app: null }[screen];
+  if (focus) $(focus).focus();
 }
 
 function group(code) {
@@ -65,10 +69,12 @@ function group(code) {
   return code;
 }
 
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
 // ---------- vault ----------
 const dedupeKey = (a) => `${a.type}|${a.secret}|${a.issuer}|${a.account}`;
 
-// everything read from storage or a backup file is re-validated through the otpauth parser
+// everything from storage, files and QR codes is re-validated through the otpauth parser
 function hydrate(raw) {
   if (!raw || typeof raw.secret !== 'string' || typeof raw.type !== 'string') return null;
   try {
@@ -102,6 +108,7 @@ function readStored() {
 }
 
 function lock() {
+  stopScan();
   session = null;
   accounts = [];
   list.replaceChildren();
@@ -115,15 +122,130 @@ function enterApp() {
   show('app');
 }
 
-// ---------- accounts ----------
-function addAccount(acc) {
-  if (accounts.some((a) => dedupeKey(a) === dedupeKey(acc))) throw new Error('This account is already in your vault');
-  accounts.push({ ...acc, id: crypto.randomUUID(), key: base32Decode(acc.secret) });
-  render();
-  save();
+// ---------- adding accounts ----------
+function addMany(rawList) {
+  const seen = new Set(accounts.map(dedupeKey));
+  let added = 0;
+  let skipped = 0;
+  let failed = 0;
+  for (const raw of rawList) {
+    const a = hydrate(raw);
+    if (!a) {
+      failed++;
+      continue;
+    }
+    if (seen.has(dedupeKey(a))) {
+      skipped++;
+      continue;
+    }
+    seen.add(dedupeKey(a));
+    accounts.push({ ...a, id: crypto.randomUUID() });
+    added++;
+  }
+  if (added) {
+    render();
+    save();
+  }
   setError('#error', '');
+  return { added, skipped, failed };
 }
 
+function addAccount(raw) {
+  const r = addMany([raw]);
+  if (r.skipped) throw new Error('This account is already in your vault');
+  if (r.failed) throw new Error('That account could not be added');
+  toast('Account added');
+}
+
+// accepts otpauth:// links and Google Authenticator transfer links
+function handleText(text) {
+  const t = String(text).trim();
+  if (/^otpauth-migration:/i.test(t)) {
+    const { accounts: found, failed } = parseMigration(t);
+    const r = addMany(found);
+    const unsupported = failed + r.failed;
+    const parts = [`Added ${plural(r.added, 'account')}`];
+    if (r.skipped) parts.push(`${r.skipped} already here`);
+    if (unsupported) parts.push(`${unsupported} not supported`);
+    toast(parts.join(', '));
+  } else if (/^otpauth:/i.test(t)) {
+    addAccount(parseOtpauth(t));
+  } else {
+    throw new Error('This is not a two-factor setup code');
+  }
+}
+
+function tryHandle(text) {
+  try {
+    handleText(text);
+  } catch (err) {
+    setError('#error', err.message);
+  }
+}
+
+// ---------- QR codes ----------
+function decodeFrom(source, width, height, maxSide) {
+  const scale = Math.min(1, maxSide / Math.max(width, height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(width * scale);
+  canvas.height = Math.round(height * scale);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(source, 0, 0, canvas.width, canvas.height);
+  const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  return jsQR(img.data, img.width, img.height)?.data ?? null;
+}
+
+async function scanImage(file) {
+  let bitmap;
+  try {
+    bitmap = await createImageBitmap(file);
+  } catch {
+    return setError('#error', 'Could not read that image');
+  }
+  const text = decodeFrom(bitmap, bitmap.width, bitmap.height, 1600);
+  bitmap.close();
+  if (!text) return setError('#error', 'No QR code found in that image');
+  tryHandle(text);
+}
+
+async function startScan() {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    return setError('#error', 'This browser cannot use the camera here. Try uploading an image instead.');
+  }
+  try {
+    scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+  } catch {
+    return setError('#error', 'Camera access was blocked or no camera was found');
+  }
+  const video = $('#scan-video');
+  video.srcObject = scanStream;
+  $('#scan-dialog').showModal();
+  await video.play().catch(() => {});
+
+  const loop = () => {
+    if (!scanStream) return;
+    if (video.readyState >= 2 && video.videoWidth) {
+      const text = decodeFrom(video, video.videoWidth, video.videoHeight, 800);
+      if (text) {
+        stopScan();
+        tryHandle(text);
+        return;
+      }
+    }
+    scanFrame = requestAnimationFrame(loop);
+  };
+  loop();
+}
+
+function stopScan() {
+  cancelAnimationFrame(scanFrame);
+  if (scanStream) for (const track of scanStream.getTracks()) track.stop(); // turn the camera off right away
+  scanStream = null;
+  $('#scan-video').srcObject = null;
+  if ($('#scan-dialog').open) $('#scan-dialog').close();
+}
+
+// ---------- account list ----------
 function ring() {
   const ns = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(ns, 'svg');
@@ -319,33 +441,43 @@ $('#import-form').addEventListener('submit', (e) => {
   busy(form, 'Importing…', async () => {
     try {
       const result = await open(pendingImport, $('#import-pass').value);
-      const seen = new Set(accounts.map(dedupeKey));
-      let added = 0;
-      let skipped = 0;
-      for (const raw of result.accounts) {
-        const a = hydrate(raw);
-        if (!a || seen.has(dedupeKey(a))) {
-          skipped++;
-          continue;
-        }
-        seen.add(dedupeKey(a));
-        accounts.push({ ...a, id: crypto.randomUUID() });
-        added++;
-      }
+      const r = addMany(result.accounts);
       await persist();
-      render();
       $('#import-dialog').close();
-      toast(`Imported ${added} account${added === 1 ? '' : 's'}${skipped ? `, skipped ${skipped}` : ''}`);
+      const parts = [`Imported ${plural(r.added, 'account')}`];
+      if (r.skipped) parts.push(`${r.skipped} already here`);
+      if (r.failed) parts.push(`${r.failed} invalid`);
+      toast(parts.join(', '));
     } catch (err) {
       setError(form, err.message);
     }
   });
 });
 
+$('#scan').addEventListener('click', startScan);
+$('#scan-cancel').addEventListener('click', stopScan);
+$('#scan-dialog').addEventListener('close', stopScan);
+
+$('#upload').addEventListener('click', () => $('#qr-file').click());
+$('#qr-file').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (file) scanImage(file);
+});
+
+// paste a screenshot of a QR code anywhere while unlocked
+document.addEventListener('paste', (e) => {
+  if (!session) return;
+  const item = [...(e.clipboardData?.items ?? [])].find((i) => i.type.startsWith('image/'));
+  if (!item) return;
+  e.preventDefault();
+  scanImage(item.getAsFile());
+});
+
 $('#uri-form').addEventListener('submit', (e) => {
   e.preventDefault();
   try {
-    addAccount(parseOtpauth($('#uri').value));
+    handleText($('#uri').value);
     $('#uri').value = '';
   } catch (err) {
     setError('#error', err.message);
@@ -376,11 +508,7 @@ $('#manual-form').addEventListener('submit', (e) => {
 });
 
 $('#demo').addEventListener('click', () => {
-  try {
-    addAccount(parseOtpauth('otpauth://totp/Demo:you@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Demo'));
-  } catch (err) {
-    setError('#error', err.message);
-  }
+  tryHandle('otpauth://totp/Demo:you@example.com?secret=JBSWY3DPEHPK3PXP&issuer=Demo');
 });
 
 setInterval(tick, 250);
