@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light dark" />
+<title>Twofold</title>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Twofold</h1>
+    <p class="tagline">Two-factor codes that stay on your device.</p>
+  </header>
+
+  <p class="notice">Preview build: accounts are kept in memory only and disappear when you close this tab. Encrypted storage is coming next.</p>
+
+  <section class="add">
+    <form id="uri-form">
+      <label for="uri">Paste an otpauth:// link</label>
+      <div class="row">
+        <input id="uri" autocomplete="off" spellcheck="false" placeholder="otpauth://totp/Example:you@example.com?secret=…" />
+        <button>Add</button>
+      </div>
+    </form>
+    <button type="button" id="demo" class="link">Add a demo account</button>
+
+    <details>
+      <summary>Enter a key manually</summary>
+      <form id="manual-form">
+        <label>Issuer <input id="m-issuer" autocomplete="off" placeholder="GitHub" /></label>
+        <label>Account <input id="m-account" required autocomplete="off" placeholder="you@example.com" /></label>
+        <label>Secret key <input id="m-secret" required autocomplete="off" spellcheck="false" placeholder="JBSW Y3DP EHPK 3PXP" /></label>
+        <div class="grid">
+          <label>Type
+            <select id="m-type"><option value="totp">Time-based</option><option value="hotp">Counter-based</option></select>
+          </label>
+          <label>Digits
+            <select id="m-digits"><option>6</option><option>7</option><option>8</option></select>
+          </label>
+          <label>Period
+            <select id="m-period"><option value="30">30 seconds</option><option value="60">60 seconds</option></select>
+          </label>
+          <label>Algorithm
+            <select id="m-alg"><option>SHA1</option><option>SHA256</option><option>SHA512</option></select>
+          </label>
+        </div>
+        <button>Add account</button>
+      </form>
+    </details>
+
+    <p id="error" class="error" role="alert" hidden></p>
+  </section>
+
+  <p id="empty" class="empty">No accounts yet.</p>
+  <ul id="list"></ul>
+</main>
+<div id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
