@@ -208,14 +208,30 @@ async function scanImage(file) {
   tryHandle(text);
 }
 
+function cameraError(err) {
+  switch (err?.name) {
+    case 'NotAllowedError':
+    case 'SecurityError':
+      return 'Camera permission was denied. Allow it from the camera icon next to the address bar, or upload a QR image instead.';
+    case 'NotFoundError':
+    case 'OverconstrainedError':
+      return 'No camera was found on this device. Upload or paste a QR image instead.';
+    case 'NotReadableError':
+    case 'AbortError':
+      return 'The camera is busy in another app. Close it and try again.';
+    default:
+      return 'The camera could not be started. Upload or paste a QR image instead.';
+  }
+}
+
 async function startScan() {
   if (!navigator.mediaDevices?.getUserMedia) {
     return setError('#error', 'This browser cannot use the camera here. Try uploading an image instead.');
   }
   try {
     scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-  } catch {
-    return setError('#error', 'Camera access was blocked or no camera was found');
+  } catch (err) {
+    return setError('#error', cameraError(err));
   }
   const video = $('#scan-video');
   video.srcObject = scanStream;
@@ -513,3 +529,14 @@ $('#demo').addEventListener('click', () => {
 
 setInterval(tick, 250);
 show(localStorage.getItem(STORAGE_KEY) ? 'unlock' : 'setup');
+
+// Warn when the keyboard types non-Latin characters into a passphrase field:
+// a vault created with one layout cannot be opened by pressing the same keys in another.
+for (const id of ['setup-pass', 'setup-pass2', 'unlock-pass', 'import-pass']) {
+  const input = document.getElementById(id);
+  const warn = el('p', 'kbd-warn', 'Your keyboard is typing non-Latin characters. Make sure this is the same layout you used when the vault was created.');
+  warn.hidden = true;
+  input.closest('label').after(warn);
+  input.addEventListener('input', () => { warn.hidden = !/[^\x00-\x7F]/.test(input.value); });
+  input.form.addEventListener('reset', () => { warn.hidden = true; });
+}

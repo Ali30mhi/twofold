@@ -116,3 +116,5 @@ dialog::backdrop { background: rgb(0 0 0 / 0.5); }
 .scan-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .small { font-size: 13px; margin: 10px 0 16px; }
 #scan-video { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 10px; background: #000; }
+
+.kbd-warn { color: #d9a400; font-size: 13px; margin: -4px 0 10px; }
