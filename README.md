@@ -28,6 +28,26 @@ A forgotten passphrase cannot be recovered. Export a backup and keep the passphr
 
 Twofold is a young project and has not had an independent security audit. Until it has one, use it alongside an established authenticator for important accounts.
 
+## Architecture
+
+```mermaid
+flowchart TD
+    IN["Camera, image upload or Ctrl+V"] -->|jsQR| T["Decoded text"]
+    LINK["Pasted link"] --> T
+    T -->|"otpauth://"| OTP["otp.js<br/>parse and validate"]
+    T -->|"otpauth-migration://"| MIG["migration.js<br/>protobuf decoder"]
+    MIG --> OTP
+    OTP --> APP["main.js<br/>accounts in memory"]
+    APP --> CODES["otp.js<br/>HOTP / TOTP codes"]
+    APP <-->|"seal / open"| VAULT["vault.js<br/>PBKDF2 + AES-256-GCM"]
+    VAULT <--> STORE[("localStorage<br/>ciphertext only")]
+    VAULT <--> FILE[("Backup file")]
+```
+
+- There is no server. Everything runs in the browser, and the only thing ever written to storage is ciphertext.
+- Decrypted secrets exist in memory only while the vault is unlocked, and are dropped when it locks.
+- Every account, whether it comes from storage, a backup or a QR code, passes through the same parser, so there is a single validation path.
+
 ## Development
 
 ```bash
