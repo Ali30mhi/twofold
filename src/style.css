@@ -92,3 +92,23 @@ summary { cursor: pointer; color: var(--muted); font-size: 14px; margin-bottom: 
   pointer-events: none;
 }
 #toast.show { opacity: 1; }
+
+[hidden] { display: none !important; }
+.top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 20px; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ghost { background: transparent; color: var(--text); border: 1px solid var(--line); padding: 8px 12px; font-size: 14px; }
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 20px 16px; }
+.panel h2, dialog h2 { margin: 0 0 6px; font-size: 18px; }
+.hint { color: var(--muted); font-size: 14px; margin: 0 0 16px; line-height: 1.5; }
+.danger { color: var(--warn); }
+.end { justify-content: flex-end; margin-top: 8px; }
+button:disabled { opacity: 0.6; cursor: wait; }
+dialog {
+  width: min(420px, calc(100% - 32px));
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--text);
+}
+dialog::backdrop { background: rgb(0 0 0 / 0.5); }

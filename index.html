@@ -8,53 +8,95 @@
 </head>
 <body>
 <main>
-  <header>
-    <h1>Twofold</h1>
-    <p class="tagline">Two-factor codes that stay on your device.</p>
+  <header class="top">
+    <div>
+      <h1>Twofold</h1>
+      <p class="tagline">Two-factor codes that stay on your device.</p>
+    </div>
+    <div id="app-actions" class="actions" hidden>
+      <button type="button" id="import" class="ghost">Import</button>
+      <button type="button" id="export" class="ghost">Export</button>
+      <button type="button" id="lock" class="ghost">Lock</button>
+    </div>
   </header>
 
-  <p class="notice">Preview build: accounts are kept in memory only and disappear when you close this tab. Encrypted storage is coming next.</p>
-
-  <section class="add">
-    <form id="uri-form">
-      <label for="uri">Paste an otpauth:// link</label>
-      <div class="row">
-        <input id="uri" autocomplete="off" spellcheck="false" placeholder="otpauth://totp/Example:you@example.com?secret=…" />
-        <button>Add</button>
-      </div>
+  <section id="setup" class="panel" hidden>
+    <h2>Create your vault</h2>
+    <p class="hint">Your accounts are encrypted with this passphrase before anything is saved. It never leaves this device and cannot be recovered, so keep it somewhere safe.</p>
+    <form id="setup-form">
+      <label>Passphrase <input id="setup-pass" type="password" autocomplete="new-password" required minlength="8" /></label>
+      <label>Repeat passphrase <input id="setup-pass2" type="password" autocomplete="new-password" required minlength="8" /></label>
+      <button>Create vault</button>
+      <p class="error" role="alert" hidden></p>
     </form>
-    <button type="button" id="demo" class="link">Add a demo account</button>
-
-    <details>
-      <summary>Enter a key manually</summary>
-      <form id="manual-form">
-        <label>Issuer <input id="m-issuer" autocomplete="off" placeholder="GitHub" /></label>
-        <label>Account <input id="m-account" required autocomplete="off" placeholder="you@example.com" /></label>
-        <label>Secret key <input id="m-secret" required autocomplete="off" spellcheck="false" placeholder="JBSW Y3DP EHPK 3PXP" /></label>
-        <div class="grid">
-          <label>Type
-            <select id="m-type"><option value="totp">Time-based</option><option value="hotp">Counter-based</option></select>
-          </label>
-          <label>Digits
-            <select id="m-digits"><option>6</option><option>7</option><option>8</option></select>
-          </label>
-          <label>Period
-            <select id="m-period"><option value="30">30 seconds</option><option value="60">60 seconds</option></select>
-          </label>
-          <label>Algorithm
-            <select id="m-alg"><option>SHA1</option><option>SHA256</option><option>SHA512</option></select>
-          </label>
-        </div>
-        <button>Add account</button>
-      </form>
-    </details>
-
-    <p id="error" class="error" role="alert" hidden></p>
   </section>
 
-  <p id="empty" class="empty">No accounts yet.</p>
-  <ul id="list"></ul>
+  <section id="unlock" class="panel" hidden>
+    <h2>Unlock your vault</h2>
+    <form id="unlock-form">
+      <label>Passphrase <input id="unlock-pass" type="password" autocomplete="current-password" required /></label>
+      <button>Unlock</button>
+      <p class="error" role="alert" hidden></p>
+    </form>
+    <button type="button" id="reset" class="link danger">Forgot your passphrase?</button>
+  </section>
+
+  <section id="app" hidden>
+    <div class="add">
+      <form id="uri-form">
+        <label for="uri">Paste an otpauth:// link</label>
+        <div class="row">
+          <input id="uri" autocomplete="off" spellcheck="false" placeholder="otpauth://totp/Example:you@example.com?secret=…" />
+          <button>Add</button>
+        </div>
+      </form>
+      <button type="button" id="demo" class="link">Add a demo account</button>
+
+      <details>
+        <summary>Enter a key manually</summary>
+        <form id="manual-form">
+          <label>Issuer <input id="m-issuer" autocomplete="off" placeholder="GitHub" /></label>
+          <label>Account <input id="m-account" required autocomplete="off" placeholder="you@example.com" /></label>
+          <label>Secret key <input id="m-secret" required autocomplete="off" spellcheck="false" placeholder="JBSW Y3DP EHPK 3PXP" /></label>
+          <div class="grid">
+            <label>Type
+              <select id="m-type"><option value="totp">Time-based</option><option value="hotp">Counter-based</option></select>
+            </label>
+            <label>Digits
+              <select id="m-digits"><option>6</option><option>7</option><option>8</option></select>
+            </label>
+            <label>Period
+              <select id="m-period"><option value="30">30 seconds</option><option value="60">60 seconds</option></select>
+            </label>
+            <label>Algorithm
+              <select id="m-alg"><option>SHA1</option><option>SHA256</option><option>SHA512</option></select>
+            </label>
+          </div>
+          <button>Add account</button>
+        </form>
+      </details>
+
+      <p id="error" class="error" role="alert" hidden></p>
+    </div>
+
+    <p id="empty" class="empty">No accounts yet.</p>
+    <ul id="list"></ul>
+  </section>
 </main>
+
+<dialog id="import-dialog">
+  <form id="import-form">
+    <h2>Import a backup</h2>
+    <p class="hint">Enter the passphrase of the vault this backup came from.</p>
+    <label>Passphrase <input id="import-pass" type="password" autocomplete="off" required /></label>
+    <p class="error" role="alert" hidden></p>
+    <div class="row end">
+      <button type="button" id="import-cancel" class="ghost">Cancel</button>
+      <button>Import</button>
+    </div>
+  </form>
+</dialog>
+<input type="file" id="import-file" accept=".json,application/json" hidden />
 <div id="toast" role="status" aria-live="polite"></div>
 <script type="module" src="/src/main.js"></script>
 </body>
